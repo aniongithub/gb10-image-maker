@@ -48,11 +48,24 @@ ARG DEFAULT_PASS=ubuntu
 # Bootable base system (a from-scratch ubuntu:24.04 rootfs is not bootable on
 # its own - install init, networking, and the UEFI boot chain explicitly).
 # =============================================================================
+# Non-interactive apt/dpkg conffile policy. Several DGX packages ship a conffile
+# we also bootstrap out-of-band - notably dgx-repo's /etc/apt/sources.list.d/
+# dgx.sources, already written by the DGX baseos tarball (step 1 below). Without
+# this, dpkg tries to PROMPT about the pre-existing file and hits "end of file on
+# stdin at conffile prompt", failing the non-interactive build. Keep our
+# (tarball) version via confdef/confold; DEBIAN_FRONTEND alone does NOT cover
+# dpkg conffile prompts.
+RUN set -e; { \
+      echo 'APT::Get::Assume-Yes "true";'; \
+      echo 'Dpkg::Options:: "--force-confdef";'; \
+      echo 'Dpkg::Options:: "--force-confold";'; \
+    } > /etc/apt/apt.conf.d/99-gb10-noninteractive
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl gnupg \
       systemd systemd-sysv init udev dbus \
       sudo openssh-server netplan.io \
-      net-tools iproute2 kmod parted \
+      net-tools iproute2 kmod parted dmidecode \
       initramfs-tools \
       grub-efi-arm64 grub-efi-arm64-signed shim-signed efibootmgr \
       fwupd cron \

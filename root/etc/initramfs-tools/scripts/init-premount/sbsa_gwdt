@@ -1,0 +1,12 @@
+#!/bin/sh
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case $1 in prereqs) prereqs; exit 0;; esac
+
+# insmod bypasses all kmod blacklists. modprobe in the initramfs sees the
+# linux-hwe/linux-nvidia-hwe blacklist bundled inside the initramfs image
+# and refuses to load sbsa_gwdt. insmod has no such restriction.
+# The GB10/GX10 firmware SBSA watchdog fires at ~20 min if unserviced.
+ko=$(find /usr/lib/modules/$(uname -r)/kernel/drivers/watchdog/ \
+     -name 'sbsa_gwdt.ko*' 2>/dev/null | head -1)
+[ -n "$ko" ] && insmod "$ko" 2>/dev/null || true

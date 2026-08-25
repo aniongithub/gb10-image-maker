@@ -1,0 +1,15 @@
+[Unit]
+Description=Load SBSA watchdog driver (bypass linux-hwe kernel package blacklist)
+Documentation=https://github.com/timothystewart6/ubuntu-gb10
+
+[Service]
+Type=oneshot
+# Use the modprobe binary directly - it treats "blacklist" as a soft blacklist
+# for explicit module-name loads and bypasses it. The libkmod API (used by
+# systemd-modules-load) enforces it strictly. Do NOT add Before=basic.target -
+# it creates a systemd ordering cycle and the job is silently dropped.
+ExecStart=/sbin/modprobe sbsa_gwdt
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

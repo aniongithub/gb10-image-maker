@@ -1,0 +1,2 @@
+# Weekly Docker system prune - see /opt/actions-runner/prune-docker.sh
+0 3 * * 0 root /opt/actions-runner/prune-docker.sh >> /var/log/docker-prune.log 2>&1

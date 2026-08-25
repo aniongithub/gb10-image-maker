@@ -1,0 +1,15 @@
+[Unit]
+Description=GB10 first-boot: firmware update + GPU/NIC self-test (runs once)
+Documentation=https://github.com/timothystewart6/ubuntu-gb10
+# Only run until it has completed successfully once.
+ConditionPathExists=!/var/lib/gb10-firstboot.done
+Wants=network-online.target docker.service
+After=network-online.target docker.service nvidia-persistenced.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gb10/gb10-firstboot.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

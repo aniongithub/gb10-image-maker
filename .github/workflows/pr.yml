@@ -1,0 +1,68 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq shellcheck
+
+      - name: Validate spark.json
+        run: jq . spark.json > /dev/null
+
+      - name: Shellcheck scripts
+        run: shellcheck spark.sh build-rootfs.sh create-image.sh || true
+
+      - name: Syntax check
+        run: |
+          bash -n spark.sh
+          bash -n build-rootfs.sh
+          bash -n create-image.sh
+
+      - name: Lint Dockerfile (advisory)
+        continue-on-error: true
+        run: docker run --rm -i hadolint/hadolint < Dockerfile
+
+  build-image:
+    runs-on: ubuntu-24.04
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq qemu-user-static binfmt-support \
+            dosfstools parted rsync
+
+      - name: Build rootfs (provisioning)
+        run: |
+          sudo mkdir -p /mnt/spark-build
+          time sudo ./build-rootfs.sh gb10-usb /mnt/spark-build/rootfs
+
+      - name: Assemble image
+        run: |
+          time sudo ./create-image.sh -b gb10-usb \
+            -r /mnt/spark-build/rootfs -o /mnt/spark-build
+          sudo chown "$USER:$USER" /mnt/spark-build/gb10-usb.img
+
+      - name: Report image size
+        run: ls -lh /mnt/spark-build/gb10-usb.img

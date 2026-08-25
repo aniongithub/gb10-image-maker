@@ -1,0 +1,76 @@
+name: Manual Image Build
+
+# Builds the GB10 / DGX Spark USB image on demand. Two stages, mirroring the repo
+# scripts: build-rootfs.sh (arm64 provisioning under QEMU, no compile thanks to the
+# prebuilt signed NVIDIA modules) then create-image.sh (from-scratch UEFI/GPT
+# assembly). Both run under sudo in CI so the docker-export tar and the loop/chroot
+# steps preserve file ownership.
+
+on:
+  workflow_dispatch:
+    inputs:
+      board:
+        description: Board to build
+        type: choice
+        required: true
+        default: gb10-usb
+        options:
+          - gb10-usb
+      compress:
+        description: Compress the image with xz before uploading
+        type: boolean
+        required: false
+        default: true
+
+concurrency:
+  group: build-${{ github.ref }}-${{ inputs.board }}
+  cancel-in-progress: true
+
+jobs:
+  build-image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # A full CUDA/driver rootfs + a 26 GiB sparse image needs more room than the
+      # ~14 GiB OS disk. Free the preinstalled toolchains and do the heavy work on
+      # /mnt (the larger ephemeral volume).
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq qemu-user-static binfmt-support \
+            dosfstools parted rsync
+
+      - name: Build rootfs (provisioning) for ${{ inputs.board }}
+        run: |
+          sudo mkdir -p /mnt/spark-build
+          time sudo ./build-rootfs.sh "${{ inputs.board }}" /mnt/spark-build/rootfs
+
+      - name: Assemble image for ${{ inputs.board }}
+        run: |
+          time sudo ./create-image.sh -b "${{ inputs.board }}" \
+            -r /mnt/spark-build/rootfs -o /mnt/spark-build
+          sudo chown "$USER:$USER" "/mnt/spark-build/${{ inputs.board }}.img"
+
+      - name: Compress image
+        if: ${{ inputs.compress }}
+        run: |
+          sudo xz -9 -T0 "/mnt/spark-build/${{ inputs.board }}.img"
+          sudo chown "$USER:$USER" "/mnt/spark-build/${{ inputs.board }}.img.xz"
+
+      - name: Report image size
+        run: ls -lh /mnt/spark-build/${{ inputs.board }}.img*
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.board }}
+          path: /mnt/spark-build/${{ inputs.board }}.img*
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,10 @@
+# Build artifacts
+*.img
+*.img.xz
+*.log
+*log
+
+# Exported rootfs / build caches
+rootfs/
+spark-rootfs/
+build/

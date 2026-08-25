@@ -1,0 +1,97 @@
+{
+  "boards": {
+    "gb10-usb": {
+      "description": "NVIDIA GB10 Grace-Blackwell / DGX Spark - run-from-USB persistent Ubuntu 24.04 arm64 appliance image",
+      "arch": "arm64",
+      "ubuntu": "24.04",
+      "ubuntu_codename": "noble",
+      "boot_model": "usb-live-persistent",
+      "output": "gb10-usb.img",
+
+      "base_docker_image": "ubuntu:24.04",
+
+      "apt_origins": {
+        "dgx_baseos_repo_files": "https://repo.download.nvidia.com/baseos/ubuntu/noble/arm64/dgx-repo-files.tgz",
+        "cuda_sbsa_repo": "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/sbsa/"
+      },
+
+      "kernel": {
+        "flavour": "nvidia-64k-hwe-24.04",
+        "image_meta": "linux-image-nvidia-64k-hwe-24.04",
+        "headers_meta": "linux-headers-nvidia-64k-hwe-24.04",
+        "tools_meta": "linux-tools-nvidia-hwe-24.04",
+        "abi": "6.17.0-1031",
+        "concrete": "6.17.0-1031-nvidia-64k",
+        "release": "6.17.0-1031.31",
+        "pages": "64k"
+      },
+
+      "nvidia": {
+        "driver": "nvidia-driver-580-open",
+        "driver_branch": "580",
+        "driver_pinning": "nvidia-driver-pinning-580",
+        "modules_package": "linux-modules-nvidia-580-open-nvidia-64k-hwe-24.04",
+        "dkms_package_avoid": "nvidia-dkms-580-open",
+        "cuda_toolkit": "cuda-toolkit-13-0",
+        "modprobe": "nvidia-modprobe",
+        "modprobe_version": "580.167.08-1ubuntu1",
+        "container_toolkit": "nvidia-container-toolkit",
+        "container_runtime_mode": "legacy",
+        "system_packages": [
+          "nvidia-system-core",
+          "nvidia-system-utils",
+          "nvidia-system-extra",
+          "nvidia-peermem-loader"
+        ],
+        "extra_packages": [
+          "libnvidia-nscq",
+          "datacenter-gpu-manager-4-cuda13",
+          "nv-persistence-mode",
+          "mlnx-tools",
+          "infiniband-diags",
+          "libnccl2"
+        ],
+        "purge": ["nvsm"]
+      },
+
+      "docker": {
+        "packages": [
+          "docker-ce",
+          "docker-ce-cli",
+          "containerd.io",
+          "docker-buildx-plugin",
+          "docker-compose-plugin"
+        ],
+        "default_runtime": "nvidia"
+      },
+
+      "cmdline": "console=tty0 pcie_port_pm=off initcall_blacklist=tegra234_cbb_init pci=pcie_bus_safe rootdelay=30",
+
+      "quirks": {
+        "sbsa_gwdt_watchdog": true,
+        "swap_off": true,
+        "swappiness": 10,
+        "disable_wifi_iface": "wlP9s9",
+        "secure_boot": "assumed-off",
+        "container_runtime_mode": "legacy"
+      },
+
+      "credentials": {
+        "username": "ubuntu",
+        "password": "ubuntu"
+      },
+
+      "image": {
+        "size": "26G",
+        "esp_size_mib": 512,
+        "esp_label": "ESP",
+        "root_label": "writable"
+      },
+
+      "firstboot": [
+        "fwupd-firmware-update",
+        "in-container-gpu-verify"
+      ]
+    }
+  }
+}
